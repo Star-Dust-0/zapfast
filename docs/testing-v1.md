@@ -125,3 +125,11 @@ interaction/restart/upgrade checks passed in the same run:
 https://github.com/Star-Dust-0/zapfast/actions/runs/41711109604
 The live-account pin action and pin persistence are not tested. The first
 attempt (41703063302) failed during VM provisioning before the app ran.
+
+## V1.0 release candidate verification
+
+Shell version 1.0.0 (3b82f81) forces offline demo on every normal launch.
+Build 41723023216 and clean-VM run 41730023315 passed. Emoji insertion was
+visually confirmed; all earlier filter/pin/send/restart/upgrade assertions
+passed again. Full update download/install remains unverified. Release
+notes are in release/v1.0.0.md.
