@@ -1,0 +1,43 @@
+name: Build Fluent Chat
+# Manual trigger only for now: the repo owner approves every real run while
+# phase 1 is in flight (public repo, so no billed minutes, but runs are loud).
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Check + build Rust core
+        shell: pwsh
+        run: |
+          cargo check --bin fluentchatd
+          if ($LASTEXITCODE -ne 0) { throw 'core check failed' }
+          cargo build --release --bin fluentchatd
+          if ($LASTEXITCODE -ne 0) { throw 'core build failed' }
+      - name: Build WinUI shell
+        shell: pwsh
+        run: |
+          msbuild shell/FluentChat/FluentChat.csproj /restore /t:Publish /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /p:Platform=x64 /p:PublishDir=../../publish/ /v:minimal
+          if ($LASTEXITCODE -ne 0) { throw 'shell publish failed' }
+      - name: Bundle core next to shell
+        shell: pwsh
+        run: |
+          New-Item publish/core -ItemType Directory -Force | Out-Null
+          Copy-Item target/release/fluentchatd.exe publish/core/
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT" -Directory | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($crt) { Copy-Item "$($crt.FullName)/*.dll" publish -Force }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fluent-chat-portable
+          path: publish/
