@@ -26,10 +26,10 @@ function Send-Frame($obj) {
 function Wait-Reply($id, $timeoutSec = 15) {
     $limit = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $limit) {
-        if ($readTask.Wait(200)) {
-            $line = $readTask.Result
+        if ($script:readTask.Wait(200)) {
+            $line = $script:readTask.Result
             if ($null -eq $line) { break }
-            $readTask = $p.StandardOutput.ReadLineAsync()
+            $script:readTask = $p.StandardOutput.ReadLineAsync()
             if ($line.Length -gt 0) {
                 $frame = $line | ConvertFrom-Json
                 if ($null -ne $frame.id) { $responses[$frame.id] = $frame }
