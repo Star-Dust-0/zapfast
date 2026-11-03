@@ -6,7 +6,17 @@
 # entries are filtered to events after that launch started.
 # ============================================================================
 $ErrorActionPreference='Continue'
-Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+Add-Type -AssemblyName System.Windows.Forms,System.Drawing,UIAutomationClient,UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class WindowTest {
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
+}
+'@
 $Share='\\host.lan\Data'
 $Log="$env:APPDATA\FluentChat\crash.log"
 
@@ -40,8 +50,23 @@ function Test-Launch($tag, $waitSec, $path){
   if (-not $crashed) {
     $proc = Get-Process FluentChat -ErrorAction SilentlyContinue | select -First 1
     "launch[$tag]: alive after ${waitSec}s hwnd=$($proc.MainWindowHandle) title='$($proc.MainWindowTitle)'"
-    try { (New-Object -ComObject WScript.Shell).AppActivate($p.Id) | Out-Null; "activate[$tag]: ok" } catch { "activate[$tag]: $($_.Exception.Message)" }
-    Start-Sleep 3
+    $ws = New-Object -ComObject WScript.Shell
+    $ws.SendKeys('{ESC}'); Start-Sleep 1
+    [WindowTest]::ShowWindow($proc.MainWindowHandle,3) | Out-Null
+    [WindowTest]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
+    Start-Sleep 1
+    [WindowTest]::SetCursorPos(200,25) | Out-Null
+    [WindowTest]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+    [WindowTest]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+    $ws.SendKeys('{ESC}'); Start-Sleep 3
+    "process[$tag]: CPU=$($proc.CPU) workingSet=$($proc.WorkingSet64)"
+    Get-Process fluentchatd -ErrorAction SilentlyContinue | % { "core[$tag]: pid=$($_.Id) CPU=$($_.CPU) workingSet=$($_.WorkingSet64)" }
+    try {
+      $root = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+      $elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+      "UIA[$tag]: $($elements.Count) descendants"
+      $elements | select -First 100 | % { "UIA[$tag]: $($_.Current.ControlType.ProgrammaticName) name='$($_.Current.Name)' id='$($_.Current.AutomationId)' rect=$($_.Current.BoundingRectangle)" }
+    } catch { "UIA[$tag] error: $_" }
   } else { Start-Sleep 3; Dump-Crash $tag $t0 }
   Shot "app-$tag"
 }
@@ -59,6 +84,25 @@ if (-not $exe -or -not $core) { "ERROR: portable payload incomplete"; exit 1 }
 
 $env:FLUENTCHAT_DEMO='1'
 $env:FLUENTCHAT_TRACE='1'
+
+# Standalone core check on a clean VM, without depending on shell navigation.
+$pi = New-Object System.Diagnostics.ProcessStartInfo
+$pi.FileName=$core.FullName; $pi.UseShellExecute=$false; $pi.CreateNoWindow=$true
+$pi.RedirectStandardInput=$true; $pi.RedirectStandardOutput=$true; $pi.RedirectStandardError=$true
+$cp = New-Object System.Diagnostics.Process; $cp.StartInfo=$pi
+try {
+  $cp.Start() | Out-Null
+  $cp.StandardInput.WriteLine('{"jsonrpc":"2.0","id":1,"method":"ping"}')
+  $cp.StandardInput.Flush(); Start-Sleep 3
+  if ($cp.HasExited) { "standalone-core: EXIT $($cp.ExitCode) stderr=$($cp.StandardError.ReadToEnd())" }
+  else {
+    $bytes=New-Object byte[] 8192
+    $read=$cp.StandardOutput.BaseStream.ReadAsync($bytes,0,$bytes.Length)
+    if ($read.Wait(5000)) { "standalone-core: $([System.Text.Encoding]::UTF8.GetString($bytes,0,$read.Result))" }
+    else { "standalone-core: TIMEOUT" }
+    $cp.Kill()
+  }
+} catch { "standalone-core: $_" }
 
 # --- P1: fresh launch, light theme (VM default) ---
 Test-Launch 'light1' 40
