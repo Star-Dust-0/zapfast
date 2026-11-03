@@ -40,7 +40,7 @@ Legend for the proof columns: **CI** = GitHub Actions build job,
 | C2 | Light theme / dark theme | VM screenshots | ✅ |
 | C3 | Arabic RTL mirrors layout (sidebar right, title bar, bubbles) | VM screenshots | 🔲 |
 | C4 | 125% and 100% display scaling, no clipped text or misaligned rows | VM screenshots | 🔲 |
-| C5 | Chat list: search filters, chips filter, unread badges, pinning order | VM with demo data | 🔲 |
+| C5 | Chat list: search filters, chips filter, unread badges, pinning order | VM with demo data | ✅ |
 | C6 | Chat page: bubbles L/R, timestamps, composer send enable/disable | VM with demo data | ✅ |
 | C7 | Animations: page transitions, list item add, send; 60 fps, no jank | VM recording review | 🔲 |
 | C8 | Login page: QR renders, steps shown, state transitions (unlinked→connecting) | VM (core emits real QR - no scan) | 🔲 |
@@ -111,11 +111,17 @@ backup, and all live-account scenarios. No release has been published.
 
 - New Chat, attachment, emoji, conversation search and More buttons have no
   action handlers in this shell.
-- Pinning is reflected in sorting but has no user action in the shell.
 - Older-history paging and media display/download are not wired into the shell.
 - The title bar does not mirror with the RTL content.
-- The test runner currently logs FAIL markers but does not fail its workflow
-  on every behavioral failure. Read the markers and inspect screenshots;
-  a green VM workflow alone is not proof that every assertion passed.
+- The VM runner now fails its workflow on FAIL markers, absent completion,
+  or missing key restart/upgrade/send assertions. Visual review is still needed.
 
 This is a verified basic-text-chat demo, not an all-scenarios-verified V1.0.
+
+Pin action and stronger verification gate (369227e) passed clean-Windows
+verification: right-click Sarah, choose Pin / unpin chat, Sarah moves above
+the newer Weekend Trip chat; the screenshot confirms order. All earlier
+interaction/restart/upgrade checks passed in the same run:
+https://github.com/Star-Dust-0/zapfast/actions/runs/41711109604
+The live-account pin action and pin persistence are not tested. The first
+attempt (41703063302) failed during VM provisioning before the app ran.
