@@ -149,11 +149,15 @@ impl Daemon {
             eprintln!("fluentchatd: -> {}", line.trim_end());
         }
         let mut out = self.out.lock();
-        if out.write_all(line.as_bytes()).is_err() {
+        if let Err(error) = out.write_all(line.as_bytes()) {
             // The shell closed the pipe: nothing left to serve.
+            eprintln!("fluentchatd: stdout write failed: {error}");
             self.quitting = true;
         }
-        let _ = out.flush();
+        if let Err(error) = out.flush() {
+            eprintln!("fluentchatd: stdout flush failed: {error}");
+            self.quitting = true;
+        }
     }
 
     fn respond(&mut self, id: Value, result: Value) {

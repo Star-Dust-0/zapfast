@@ -43,12 +43,9 @@ jobs:
           Get-Content probe-pipe-err.txt
           if ((Get-Content probe-pipe-out.jsonl -Raw) -notmatch '"pong":true') { throw 'cmd pipe probe: no pong' }
           Write-Output 'cmd pipe probe: pong OK'
-      - name: Core pipe verification (demo, B1-B5)
+      - name: Core pipe verification (.NET probe, B1-B6)
         shell: pwsh
-        run: ./verification/core-pipe.ps1 -Demo
-      - name: Core pipe verification (real backend smoke, B1+B5)
-        shell: pwsh
-        run: ./verification/core-pipe.ps1 -Smoke
+        run: dotnet run --project verification/DotnetPipeProbe --configuration Release -- target/release/fluentchatd.exe
       - name: Build WinUI shell
         shell: pwsh
         run: |
