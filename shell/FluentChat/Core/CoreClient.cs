@@ -100,67 +100,42 @@ public sealed class CoreClient : IDisposable
 
     private async Task ReadLoop()
     {
+        // Read the raw stream, not StreamReader.ReadLineAsync: against this
+        // child, ReadLineAsync never completes on Windows (verified by the
+        // DotnetPipeProbe CI gate) while BaseStream reads work. Decode UTF-8
+        // incrementally so multi-byte characters can span reads, split on
+        // newlines, and dispatch one frame per line.
+        var buffer = new byte[8192];
+        Decoder decoder = Encoding.UTF8.GetDecoder();
+        var chars = new char[8192];
+        var pendingText = new StringBuilder();
         try
         {
             while (!_stop.IsCancellationRequested)
             {
-                string? line = await _process.StandardOutput.ReadLineAsync(_stop.Token).ConfigureAwait(false);
-                if (line == null)
+                int read = await _process.StandardOutput.BaseStream
+                    .ReadAsync(buffer, _stop.Token)
+                    .ConfigureAwait(false);
+                if (read == 0)
                 {
                     break;
                 }
-                if (line.Length == 0)
+                int used = decoder.GetChars(buffer, 0, read, chars, 0);
+                pendingText.Append(chars, 0, used);
+                int start = 0;
+                for (int i = 0; i < pendingText.Length; i++)
                 {
-                    continue;
-                }
-                JsonDocument doc;
-                try
-                {
-                    doc = JsonDocument.Parse(line);
-                }
-                catch (JsonException)
-                {
-                    continue;
-                }
-                using (doc)
-                {
-                    JsonElement root = doc.RootElement;
-                    if (root.TryGetProperty("id", out JsonElement idEl) && idEl.ValueKind == JsonValueKind.Number)
+                    if (pendingText[i] != '\n')
                     {
-                        long id = idEl.GetInt64();
-                        if (_pending.TryRemove(id, out TaskCompletionSource<JsonElement>? tcs))
-                        {
-                            if (root.TryGetProperty("error", out JsonElement error))
-                            {
-                                string message = error.TryGetProperty("message", out JsonElement m)
-                                    ? m.GetString() ?? "core error"
-                                    : "core error";
-                                tcs.TrySetException(new InvalidOperationException(message));
-                            }
-                            else
-                            {
-                                tcs.TrySetResult(root.GetProperty("result").Clone());
-                            }
-                        }
+                        continue;
                     }
-                    else if (root.TryGetProperty("method", out JsonElement methodEl)
-                        && methodEl.GetString() == "event"
-                        && root.TryGetProperty("params", out JsonElement evtParams))
-                    {
-                        string name = evtParams.TryGetProperty("name", out JsonElement n)
-                            ? n.GetString() ?? ""
-                            : "";
-                        JsonElement data = evtParams.TryGetProperty("data", out JsonElement d)
-                            ? d.Clone()
-                            : default;
-                        try
-                        {
-                            CoreEvent?.Invoke(name, data);
-                        }
-                        catch
-                        {
-                        }
-                    }
+                    string line = pendingText.ToString(start, i - start).TrimEnd('\r');
+                    start = i + 1;
+                    DispatchLine(line);
+                }
+                if (start > 0)
+                {
+                    pendingText.Remove(0, start);
                 }
             }
         }
@@ -175,6 +150,63 @@ public sealed class CoreClient : IDisposable
             pair.Value.TrySetException(new IOException("core closed"));
         }
         _pending.Clear();
+    }
+
+    private void DispatchLine(string line)
+    {
+        if (line.Length == 0)
+        {
+            return;
+        }
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(line);
+        }
+        catch (JsonException)
+        {
+            return;
+        }
+        using (doc)
+        {
+            JsonElement root = doc.RootElement;
+            if (root.TryGetProperty("id", out JsonElement idEl) && idEl.ValueKind == JsonValueKind.Number)
+            {
+                long id = idEl.GetInt64();
+                if (_pending.TryRemove(id, out TaskCompletionSource<JsonElement>? tcs))
+                {
+                    if (root.TryGetProperty("error", out JsonElement error))
+                    {
+                        string message = error.TryGetProperty("message", out JsonElement m)
+                            ? m.GetString() ?? "core error"
+                            : "core error";
+                        tcs.TrySetException(new InvalidOperationException(message));
+                    }
+                    else
+                    {
+                        tcs.TrySetResult(root.GetProperty("result").Clone());
+                    }
+                }
+            }
+            else if (root.TryGetProperty("method", out JsonElement methodEl)
+                && methodEl.GetString() == "event"
+                && root.TryGetProperty("params", out JsonElement evtParams))
+            {
+                string name = evtParams.TryGetProperty("name", out JsonElement n)
+                    ? n.GetString() ?? ""
+                    : "";
+                JsonElement data = evtParams.TryGetProperty("data", out JsonElement d)
+                    ? d.Clone()
+                    : default;
+                try
+                {
+                    CoreEvent?.Invoke(name, data);
+                }
+                catch
+                {
+                }
+            }
+        }
     }
 
     public void Dispose()

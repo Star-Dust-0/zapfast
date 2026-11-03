@@ -98,9 +98,11 @@ void Report(string name, bool ok)
 
 // --- transport strategy probes (demo core) ---
 bool a = await ProbeReadLineAsync(true);
-Report("T1 ReadLineAsync (CoreClient strategy) receives pong", a);
+// T1 is the known-broken strategy the old CoreClient used: it documents why
+// CoreClient reads the raw stream instead. Informational, not a gate.
+Console.WriteLine((a ? "PASS " : "INFO ") + "T1 StreamReader.ReadLineAsync (legacy strategy, expected to hang) receives pong");
 bool b = await ProbeBaseStream(true);
-Report("T2 BaseStream.ReadAsync receives pong", b);
+Report("T2 BaseStream.ReadAsync (CoreClient strategy) receives pong", b);
 bool c = await ProbeEvents(true);
 Report("T3 OutputDataReceived events receive pong", c);
 
