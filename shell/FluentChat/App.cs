@@ -11,6 +11,8 @@ public partial class App : Application
 
     private MainWindow? _window;
 
+    private EventWaitHandle? _quitEvent;
+
     public static string AppData =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FluentChat");
 
@@ -44,6 +46,17 @@ public partial class App : Application
             Environment.Exit(0);
             return;
         }
+        // Installer handshake: the Inno Setup script signals this event so an
+        // upgrade can close the running app first (his installer convention).
+        _quitEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "FluentChat.Quit");
+        var quit = _quitEvent;
+        new Thread(() =>
+        {
+            quit.WaitOne();
+            _window?.DispatcherQueue.TryEnqueue(() => _window.Close());
+        })
+        { IsBackground = true }.Start();
+
         _window = new MainWindow();
         _window.Activate();
     }
