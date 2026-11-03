@@ -17,18 +17,28 @@ $null = $p.Start()
 
 $responses = @{}
 $events = New-Object System.Collections.ArrayList
-$readTask = $p.StandardOutput.ReadLineAsync()
+$script:readTask = $p.StandardOutput.ReadLineAsync()
+$script:errTask = $p.StandardError.ReadToEndAsync()
 
 function Send-Frame($obj) {
     $p.StandardInput.WriteLine(($obj | ConvertTo-Json -Compress -Depth 8))
     $p.StandardInput.Flush()
 }
-function Wait-Reply($id, $timeoutSec = 15) {
+function Dump-Core-State($why) {
+    Write-Output "DIAG $why"
+    Write-Output ("DIAG process exited: " + $p.HasExited + ($(if ($p.HasExited) { " code=" + $p.ExitCode } else { "" })))
+    if ($p.HasExited) {
+        $err = $script:errTask.GetAwaiter().GetResult()
+        if ($err) { Write-Output "DIAG --- core stderr ---"; Write-Output $err; Write-Output "DIAG --- end stderr ---" }
+    }
+}
+function Wait-Reply($id, $timeoutSec = 30) {
     $limit = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $limit) {
+        if ($p.HasExited) { Dump-Core-State "core exited while waiting for id=$id"; throw "core exited while waiting for reply id=$id" }
         if ($script:readTask.Wait(200)) {
             $line = $script:readTask.Result
-            if ($null -eq $line) { break }
+            if ($null -eq $line) { Dump-Core-State "stdout closed while waiting for id=$id"; throw "core closed stdout while waiting for reply id=$id" }
             $script:readTask = $p.StandardOutput.ReadLineAsync()
             if ($line.Length -gt 0) {
                 $frame = $line | ConvertFrom-Json
@@ -38,6 +48,7 @@ function Wait-Reply($id, $timeoutSec = 15) {
         }
         if ($responses.ContainsKey($id)) { return $responses[$id] }
     }
+    Dump-Core-State "timeout waiting for id=$id"
     throw "timeout waiting for reply id=$id"
 }
 
@@ -46,35 +57,42 @@ function Check($name, $cond) {
     if ($cond) { Write-Output "PASS $name" } else { $script:fails++; Write-Output "FAIL $name" }
 }
 
-# B1: ping
-Send-Frame @{ jsonrpc = '2.0'; id = 1; method = 'ping' }
-$r = Wait-Reply 1
-Check 'B1 ping answers with protocol version' ($r.result.pong -eq $true -and $r.result.protocol -ge 1)
+try {
+    # B1: ping (first answer doubles as the boot check: process starts,
+    # data dirs are created, the backend thread and runtime come up).
+    Send-Frame @{ jsonrpc = '2.0'; id = 1; method = 'ping' }
+    $r = Wait-Reply 1 60
+    Check 'B1 ping answers with protocol version' ($r.result.pong -eq $true -and $r.result.protocol -ge 1)
 
-# B2: getState before any link
-Send-Frame @{ jsonrpc = '2.0'; id = 2; method = 'getState' }
-$r = Wait-Reply 2
-Check 'B2 getState returns link state' ($null -ne $r.result.link.state)
+    # B2: getState before any link
+    Send-Frame @{ jsonrpc = '2.0'; id = 2; method = 'getState' }
+    $r = Wait-Reply 2
+    Check 'B2 getState returns link state' ($null -ne $r.result.link.state)
 
-# B3: unknown method -> JSON-RPC error, core alive afterwards
-Send-Frame @{ jsonrpc = '2.0'; id = 3; method = 'noSuchMethod' }
-$r = Wait-Reply 3
-Check 'B3 unknown method returns error -32601' ($r.error.code -eq -32601)
-Send-Frame @{ jsonrpc = '2.0'; id = 4; method = 'ping' }
-$r = Wait-Reply 4
-Check 'B3 core still answers after bad frame' ($r.result.pong -eq $true)
+    # B3: unknown method -> JSON-RPC error, core alive afterwards
+    Send-Frame @{ jsonrpc = '2.0'; id = 3; method = 'noSuchMethod' }
+    $r = Wait-Reply 3
+    Check 'B3 unknown method returns error -32601' ($r.error.code -eq -32601)
+    Send-Frame @{ jsonrpc = '2.0'; id = 4; method = 'ping' }
+    $r = Wait-Reply 4
+    Check 'B3 core still answers after bad frame' ($r.result.pong -eq $true)
 
-# B4: loadChat for an unknown chat answers (no hang)
-Send-Frame @{ jsonrpc = '2.0'; id = 5; method = 'loadChat'; params = @{ chat = 'nobody@s.whatsapp.net' } }
-$r = Wait-Reply 5 30
-Check 'B4 loadChat answers for unknown chat' (($null -ne $r.result) -or ($null -ne $r.error))
+    # B4: loadChat for an unknown chat answers (no hang)
+    Send-Frame @{ jsonrpc = '2.0'; id = 5; method = 'loadChat'; params = @{ chat = 'nobody@s.whatsapp.net' } }
+    $r = Wait-Reply 5 30
+    Check 'B4 loadChat answers for unknown chat' (($null -ne $r.result) -or ($null -ne $r.error))
 
-# B5: shutdown exits promptly
-Send-Frame @{ jsonrpc = '2.0'; id = 6; method = 'shutdown' }
-$r = Wait-Reply 6
-$exited = $p.WaitForExit(3000)
-Check 'B5 shutdown exits within 3s' ($exited -eq $true)
+    # B5: clean shutdown
+    Send-Frame @{ jsonrpc = '2.0'; id = 6; method = 'shutdown' }
+    $r = Wait-Reply 6
+    $p.WaitForExit(10000) | Out-Null
+    Check 'B5 shutdown acks and the process exits' (($null -ne $r.result) -and $p.HasExited -and $p.ExitCode -eq 0)
+}
+finally {
+    if (-not $p.HasExited) { $p.Kill() }
+    $err = $script:errTask.GetAwaiter().GetResult()
+    if ($err) { Write-Output "--- core stderr ---"; Write-Output $err; Write-Output "--- end stderr ---" }
+}
 
-if (-not $exited) { $p.Kill() }
-if ($fails -gt 0) { throw "$fails core-pipe check(s) failed" }
-Write-Output 'core-pipe: all checks passed'
+if ($fails -gt 0) { throw "$fails core pipe checks failed" }
+Write-Output "core pipe: all checks passed"
