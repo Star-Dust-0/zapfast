@@ -33,6 +33,13 @@ public sealed class CoreClient : IDisposable
         _process = process;
         _stdin = process.StandardInput;
         _ = Task.Run(ReadLoop);
+        // Always drain stderr. Trace output must never fill a pipe and stall
+        // the daemon while the UI is waiting for a protocol response.
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data != null) System.Diagnostics.Debug.WriteLine("core: " + e.Data);
+        };
+        process.BeginErrorReadLine();
         _ = Task.Run(() =>
         {
             try
@@ -95,7 +102,7 @@ public sealed class CoreClient : IDisposable
             _stdin.WriteLine(line);
             _stdin.Flush();
         }
-        return tcs.Task;
+        return tcs.Task.WaitAsync(TimeSpan.FromSeconds(15));
     }
 
     private async Task ReadLoop()

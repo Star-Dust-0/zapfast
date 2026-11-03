@@ -58,7 +58,10 @@ jobs:
           Copy-Item target/release/fluentchatd.exe publish/core/
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
           $crt = Get-ChildItem "$vs/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT" -Directory | Sort-Object FullName -Descending | Select-Object -First 1
-          if ($crt) { Copy-Item "$($crt.FullName)/*.dll" publish -Force }
+          if (-not $crt) { throw 'VC runtime directory not found' }
+          Copy-Item "$($crt.FullName)/*.dll" publish -Force
+          Copy-Item "$($crt.FullName)/*.dll" publish/core -Force
+          if (-not (Test-Path publish/core/vcruntime140.dll)) { throw 'Core VC runtime missing' }
       - name: Package portable zip and installer
         shell: pwsh
         run: |

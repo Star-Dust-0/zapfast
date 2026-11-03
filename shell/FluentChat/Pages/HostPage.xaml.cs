@@ -20,9 +20,9 @@ public sealed partial class HostPage : Page
     {
         base.OnNavigatedTo(e);
         _core = (CoreClient)e.Parameter;
-        HostFrame.Navigate(typeof(LoginPage), _core);
         _core.CoreEvent += OnCoreEvent;
-        _ = _core.RequestAsync("getState");
+        HostFrame.Navigate(typeof(LoginPage), _core);
+        RefreshState();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -34,22 +34,38 @@ public sealed partial class HostPage : Page
         base.OnNavigatedFrom(e);
     }
 
+    private async void RefreshState()
+    {
+        try
+        {
+            JsonElement state = await _core!.RequestAsync("getState");
+            if (state.TryGetProperty("link", out JsonElement link))
+            {
+                ApplyLink(link);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("Initial core state failed: " + ex.Message);
+        }
+    }
+
     private void OnCoreEvent(string name, System.Text.Json.JsonElement data)
     {
         if (name != "link")
         {
             return;
         }
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () => ApplyLink(data));
+    }
+
+    private void ApplyLink(JsonElement data)
+    {
+        string? state = data.TryGetProperty("state", out JsonElement s) ? s.GetString() : null;
+        System.Type target = state == "connected" ? typeof(MainPage) : typeof(LoginPage);
+        if (HostFrame.CurrentSourcePageType != target)
         {
-            string? state = data.TryGetProperty("state", out System.Text.Json.JsonElement s)
-                ? s.GetString()
-                : null;
-            System.Type target = state == "connected" ? typeof(MainPage) : typeof(LoginPage);
-            if (HostFrame.CurrentSourcePageType != target)
-            {
-                HostFrame.Navigate(target, _core);
-            }
-        });
+            HostFrame.Navigate(target, _core);
+        }
     }
 }
