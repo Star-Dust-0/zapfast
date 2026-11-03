@@ -11,23 +11,30 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid>
+        <InfoBar x:Name="UpdateBar" Grid.Row="0" IsOpen="False" Severity="Informational"
+            Title="Update available" Message="" Margin="0,0,0,4">
+            <InfoBar.ActionButton>
+                <Button x:Name="UpdateButton" Content="Download and install" Click="OnUpdateClick" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+        <Grid Grid.Row="1">
             <TextBlock Text="Chats" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Button x:Name="NewChatButton" HorizontalAlignment="Right" Width="36" Height="36" Padding="0"
                 CornerRadius="18" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="New chat">
                 <FontIcon Glyph="&#xE710;" FontSize="16" />
             </Button>
         </Grid>
-        <TextBox x:Name="SearchBox" PlaceholderText="Search chats" TextChanged="OnSearchChanged" />
-        <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBox x:Name="SearchBox" Grid.Row="2" PlaceholderText="Search chats" TextChanged="OnSearchChanged" />
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6">
             <Button x:Name="ChipAll" Content="All" Click="OnChip" Tag="all" />
             <Button x:Name="ChipUnread" Content="Unread" Click="OnChip" Tag="unread" />
             <Button x:Name="ChipGroups" Content="Groups" Click="OnChip" Tag="groups" />
             <Button x:Name="ChipFavorites" Content="Favorites" Click="OnChip" Tag="favorites" />
         </StackPanel>
-        <ListView x:Name="ChatList" Grid.Row="3" SelectionMode="Single"
+        <ListView x:Name="ChatList" Grid.Row="4" SelectionMode="Single"
             ItemClick="OnChatClick" IsItemClickEnabled="True">
             <ListView.ItemTemplate>
                 <DataTemplate>

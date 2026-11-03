@@ -28,6 +28,7 @@ public sealed partial class ChatListPage : Page
         _host = (MainPage)e.Parameter;
         _host.Core.CoreEvent += OnCoreEvent;
         Refresh();
+        CheckUpdates();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -129,6 +130,59 @@ public sealed partial class ChatListPage : Page
                 }
             }
         });
+    }
+
+    private FluentChat.Core.UpdateInfo? _update;
+
+    private async void CheckUpdates()
+    {
+        try
+        {
+            FluentChat.Core.UpdateInfo? info = await FluentChat.Core.Updater.CheckAsync();
+            if (info == null)
+            {
+                return;
+            }
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                _update = info;
+                UpdateBar.Message = "Version " + info.Version + " is ready to download.";
+                UpdateBar.IsOpen = true;
+            });
+        }
+        catch
+        {
+        }
+    }
+
+    private async void OnUpdateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_update == null)
+        {
+            return;
+        }
+        UpdateButton.IsEnabled = false;
+        try
+        {
+            string file = await FluentChat.Core.Updater.DownloadAsync(_update, pct =>
+            {
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                {
+                    UpdateBar.Message = "Downloading version " + _update.Version + " - " + (int)pct + "%";
+                });
+            }, System.Threading.CancellationToken.None);
+            UpdateBar.Message = "Verified. The app closes and the installer finishes the update.";
+            await System.Threading.Tasks.Task.Delay(800);
+            FluentChat.Core.Updater.LaunchInstaller(file);
+        }
+        catch (Exception ex)
+        {
+            UpdateBar.Severity = InfoBarSeverity.Error;
+            UpdateBar.Title = "Update failed";
+            UpdateBar.Message = ex.Message;
+            UpdateButton.IsEnabled = true;
+            UpdateButton.Content = "Retry";
+        }
     }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
