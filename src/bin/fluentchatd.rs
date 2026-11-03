@@ -394,9 +394,7 @@ impl Daemon {
                     "older": older,
                     "complete": complete,
                 });
-                if !older
-                    && let Some(waiting) = self.pending_loads.remove(&chat)
-                {
+                if !older && let Some(waiting) = self.pending_loads.remove(&chat) {
                     for id in waiting {
                         self.respond(id, payload.clone());
                     }
