@@ -211,6 +211,16 @@ if ($setup) {
       "upgrade: exit=$($upgrade.ExitCode) appStillRunning=$([bool](Get-Process FluentChat -ErrorAction SilentlyContinue))"
     } else { "FAIL[upgrade]: timed out"; $upgrade.Kill() }
     Test-Launch 'upgraded' 20 $installed
+    $oldCore=Get-Process fluentchatd | select -First 1
+    Stop-Process -Id $oldCore.Id -Force
+    Start-Sleep 8
+    $newCore=Get-Process fluentchatd -ErrorAction SilentlyContinue | select -First 1
+    if ($newCore -and $newCore.Id -ne $oldCore.Id) {
+      "PASS[restart]: new daemon pid=$($newCore.Id) old=$($oldCore.Id)"
+      $app=Get-Process FluentChat | select -First 1
+      Assert-Count 'restart-chat-list' $app.MainWindowHandle 7
+      Test-Interactions 'restarted' $app.MainWindowHandle
+    } else { "FAIL[restart]: daemon not replaced" }
     KillApp; Start-Sleep 2
     # Missing-core path uses a reversible rename; never contacts an account.
     Move-Item C:\app\core\fluentchatd.exe C:\app\core\fluentchatd.test-disabled -Force
