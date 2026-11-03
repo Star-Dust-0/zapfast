@@ -341,7 +341,7 @@ impl Daemon {
                 complete,
             } => {
                 let payload = json!({
-                    "chat": chat,
+                    "chat": chat.clone(),
                     "messages": messages.iter().map(message_json).collect::<Vec<_>>(),
                     "older": older,
                     "complete": complete,
