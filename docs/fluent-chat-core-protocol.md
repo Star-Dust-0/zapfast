@@ -8,6 +8,14 @@ The protocol is private to the Fluent Chat app: it connects the app's own
 shell and core processes on one machine. It is not an automation interface
 and is not covered by any stability promise to third parties.
 
+## Offline demo mode
+
+`FLUENTCHAT_DEMO=1` starts the core disconnected (the backend's `detached()`
+handle) and feeds fictional chats/messages - the cast of the approved
+concept renders - through the same bridge. `loadChat` returns the fictional
+conversation, `sendText` echoes an outgoing message. This drives UI, theme,
+RTL and animation verification without any WhatsApp account.
+
 ## Requests (shell -> core)
 
 | Method | Params | Result |
