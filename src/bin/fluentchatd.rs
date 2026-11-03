@@ -11,7 +11,7 @@ use std::sync::mpsc as std_mpsc;
 use std::time::Duration;
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use zapfast::backend::{Backend, Command, Event, LinkStatus, Waker};
 use zapfast::model::{AccountId, Chat, ChatId, ChatKind, Content, Delivery, LastMessage, Message};
@@ -229,7 +229,10 @@ impl Daemon {
                 let chat = chat_id()?;
                 if self.demo {
                     let messages = demo_messages(&chat);
-                    self.pending_loads.entry(chat.clone()).or_default().push(id.clone());
+                    self.pending_loads
+                        .entry(chat.clone())
+                        .or_default()
+                        .push(id.clone());
                     self.on_event(Event::Messages {
                         chat,
                         messages,
@@ -263,14 +266,8 @@ impl Daemon {
                     .to_owned();
                 let quoting = params.get("quote").and_then(|quote| {
                     let id = quote.get("id")?.as_str()?.to_owned();
-                    let source = quote
-                        .get("chat")
-                        .and_then(Value::as_str)
-                        .map(str::to_owned);
-                    Some(zapfast::model::ReplyTarget {
-                        id,
-                        chat: source,
-                    })
+                    let source = quote.get("chat").and_then(Value::as_str).map(str::to_owned);
+                    Some(zapfast::model::ReplyTarget { id, chat: source })
                 });
                 if self.demo {
                     let echo = Message {
@@ -284,7 +281,10 @@ impl Daemon {
                             .map(|d| d.as_secs() as i64)
                             .unwrap_or(0),
                         history_order: None,
-                        content: Content::Text { text, preview: None },
+                        content: Content::Text {
+                            text,
+                            preview: None,
+                        },
                         status: Delivery::Sent,
                         delivered_at: None,
                         read_at: None,
@@ -456,10 +456,7 @@ impl Daemon {
                 );
             }
             Event::Avatar { id, full, path } => {
-                self.notify(
-                    "avatar",
-                    json!({"id": id, "full": full, "path": path}),
-                );
+                self.notify("avatar", json!({"id": id, "full": full, "path": path}));
             }
             Event::Media {
                 chat,
@@ -536,13 +533,62 @@ fn demo_chats() -> Vec<Chat> {
         voice_speed: None,
     };
     vec![
-        chat("demo-weekend@g.us", "Weekend Trip", ChatKind::Group, 180, 2, "Khaled: Count me in, guys"),
-        chat("demo-sara@s.whatsapp.net", "Sarah Ahmed", ChatKind::Direct, 2100, 1, "Great, I will send it to you this evening"),
-        chat("demo-omar@s.whatsapp.net", "Omar Farouk", ChatKind::Direct, 5100, 0, "The photos arrived, thank you so much"),
-        chat("demo-mariam@s.whatsapp.net", "Mariam Sami", ChatKind::Direct, 8400, 3, "Is the meeting still on for tomorrow?"),
-        chat("demo-mom@s.whatsapp.net", "Mom", ChatKind::Direct, 15600, 0, "Do not forget the doctor appointment Thursday"),
-        chat("demo-noor@s.whatsapp.net", "Noor Elhoda", ChatKind::Direct, 19800, 0, "Received, everything is fine"),
-        chat("demo-work@g.us", "Work Team", ChatKind::Group, 30000, 0, "Youssef: The report is ready for review"),
+        chat(
+            "demo-weekend@g.us",
+            "Weekend Trip",
+            ChatKind::Group,
+            180,
+            2,
+            "Khaled: Count me in, guys",
+        ),
+        chat(
+            "demo-sara@s.whatsapp.net",
+            "Sarah Ahmed",
+            ChatKind::Direct,
+            2100,
+            1,
+            "Great, I will send it to you this evening",
+        ),
+        chat(
+            "demo-omar@s.whatsapp.net",
+            "Omar Farouk",
+            ChatKind::Direct,
+            5100,
+            0,
+            "The photos arrived, thank you so much",
+        ),
+        chat(
+            "demo-mariam@s.whatsapp.net",
+            "Mariam Sami",
+            ChatKind::Direct,
+            8400,
+            3,
+            "Is the meeting still on for tomorrow?",
+        ),
+        chat(
+            "demo-mom@s.whatsapp.net",
+            "Mom",
+            ChatKind::Direct,
+            15600,
+            0,
+            "Do not forget the doctor appointment Thursday",
+        ),
+        chat(
+            "demo-noor@s.whatsapp.net",
+            "Noor Elhoda",
+            ChatKind::Direct,
+            19800,
+            0,
+            "Received, everything is fine",
+        ),
+        chat(
+            "demo-work@g.us",
+            "Work Team",
+            ChatKind::Group,
+            30000,
+            0,
+            "Youssef: The report is ready for review",
+        ),
     ]
 }
 
@@ -552,39 +598,72 @@ fn demo_messages(chat: &str) -> Vec<Message> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let text = |id: &str, sender: &str, sender_name: Option<&str>, from_me: bool, ago: i64, body: &str| Message {
-        id: format!("demo-{id}"),
-        chat: chat.to_string(),
-        sender: sender.to_string(),
-        sender_name: sender_name.map(str::to_string),
-        from_me,
-        timestamp: now - ago,
-        history_order: None,
-        content: Content::Text {
-            text: body.to_string(),
-            preview: None,
-        },
-        status: Delivery::Read,
-        delivered_at: Some(now - ago),
-        read_at: Some(now - ago + 60),
-        quoted: None,
-        reactions: Vec::new(),
-        edited: false,
-        mentions: Vec::new(),
-        forwarded: false,
-        thumbnail: None,
-    };
+    let text =
+        |id: &str, sender: &str, sender_name: Option<&str>, from_me: bool, ago: i64, body: &str| {
+            Message {
+                id: format!("demo-{id}"),
+                chat: chat.to_string(),
+                sender: sender.to_string(),
+                sender_name: sender_name.map(str::to_string),
+                from_me,
+                timestamp: now - ago,
+                history_order: None,
+                content: Content::Text {
+                    text: body.to_string(),
+                    preview: None,
+                },
+                status: Delivery::Read,
+                delivered_at: Some(now - ago),
+                read_at: Some(now - ago + 60),
+                quoted: None,
+                reactions: Vec::new(),
+                edited: false,
+                mentions: Vec::new(),
+                forwarded: false,
+                thumbnail: None,
+            }
+        };
     vec![
-        text("1", "demo-mariam@s.whatsapp.net", Some("Mariam Sami"), false, 1500,
-            "Good evening everyone, is everything ready for tomorrow trip?"),
-        text("2", "demo-khaled@s.whatsapp.net", Some("Khaled"), false, 1320,
-            "Yes, I got the car and the tent ready yesterday."),
-        text("3", "me", None, true, 1200,
-            "Excellent, and I will bring the food and drinks with me."),
-        text("4", "demo-sara@s.whatsapp.net", Some("Sarah Ahmed"), false, 900,
-            "Do not forget the camera this time!"),
-        text("5", "me", None, true, 300,
-            "Beautiful shot, that place is really worth the visit."),
+        text(
+            "1",
+            "demo-mariam@s.whatsapp.net",
+            Some("Mariam Sami"),
+            false,
+            1500,
+            "Good evening everyone, is everything ready for tomorrow trip?",
+        ),
+        text(
+            "2",
+            "demo-khaled@s.whatsapp.net",
+            Some("Khaled"),
+            false,
+            1320,
+            "Yes, I got the car and the tent ready yesterday.",
+        ),
+        text(
+            "3",
+            "me",
+            None,
+            true,
+            1200,
+            "Excellent, and I will bring the food and drinks with me.",
+        ),
+        text(
+            "4",
+            "demo-sara@s.whatsapp.net",
+            Some("Sarah Ahmed"),
+            false,
+            900,
+            "Do not forget the camera this time!",
+        ),
+        text(
+            "5",
+            "me",
+            None,
+            true,
+            300,
+            "Beautiful shot, that place is really worth the visit.",
+        ),
     ]
 }
 
