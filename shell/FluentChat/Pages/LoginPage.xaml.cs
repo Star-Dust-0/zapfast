@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using QRCoder;
+using System.IO;
 
 namespace FluentChat.Pages;
 
@@ -112,7 +113,7 @@ public sealed partial class LoginPage : Page
         using (QRCodeData data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q))
         using (var code = new PngByteQRCode(data))
         {
-            byte[] png = code.GetGraphic(8, new byte[] { 17, 17, 17, 255 }, new byte[] { 255, 255, 255, 255 }, false);
+            byte[] png = code.GetGraphic(8, new byte[] { 17, 17, 17 }, new byte[] { 255, 255, 255 }, false);
             var bitmap = new BitmapImage();
             using (var stream = new System.IO.MemoryStream(png))
             {
