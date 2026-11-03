@@ -394,13 +394,13 @@ impl Daemon {
                     "older": older,
                     "complete": complete,
                 });
-                if !older {
-                    if let Some(waiting) = self.pending_loads.remove(&chat) {
-                        for id in waiting {
-                            self.respond(id, payload.clone());
-                        }
-                        return;
+                if !older
+                    && let Some(waiting) = self.pending_loads.remove(&chat)
+                {
+                    for id in waiting {
+                        self.respond(id, payload.clone());
                     }
+                    return;
                 }
                 self.notify("messages", payload);
             }
