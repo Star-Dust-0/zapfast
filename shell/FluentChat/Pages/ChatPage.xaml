@@ -68,7 +68,16 @@
             </Button>
             <TextBox x:Name="Composer" Grid.Column="1" PlaceholderText="Type a message"
                 KeyDown="OnComposerKeyDown" TextChanged="OnComposerChanged" />
-            <Button Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Emoji">
+            <Button x:Name="EmojiButton" Grid.Column="2" Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Emoji">
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="😀" Click="OnEmoji" />
+                        <MenuFlyoutItem Text="❤️" Click="OnEmoji" />
+                        <MenuFlyoutItem Text="👍" Click="OnEmoji" />
+                        <MenuFlyoutItem Text="🎉" Click="OnEmoji" />
+                        <MenuFlyoutItem Text="🙏" Click="OnEmoji" />
+                    </MenuFlyout>
+                </Button.Flyout>
                 <FontIcon Glyph="&#xE76E;" FontSize="16" />
             </Button>
             <Button x:Name="SendButton" IsEnabled="False" Grid.Column="3" Width="36" Height="36" Padding="0" CornerRadius="18" Background="{ThemeResource AccentFillColorDefaultBrush}"

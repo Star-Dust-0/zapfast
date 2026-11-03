@@ -15,6 +15,7 @@ public sealed partial class ChatPage : Page
     private readonly ObservableCollection<Message> _messages = new();
     private ChatOpenArgs? _args;
     private bool _composing;
+    private bool _sending;
 
     public string Title { get; private set; } = "";
 
@@ -160,7 +161,7 @@ public sealed partial class ChatPage : Page
 
     private void OnComposerChanged(object sender, TextChangedEventArgs e)
     {
-        if (SendButton != null) SendButton.IsEnabled = !string.IsNullOrWhiteSpace(Composer.Text);
+        if (SendButton != null) SendButton.IsEnabled = !_sending && !string.IsNullOrWhiteSpace(Composer.Text);
         SetComposing(Composer.Text.Length > 0);
     }
 
@@ -175,9 +176,21 @@ public sealed partial class ChatPage : Page
 
     private void OnSend(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Send();
 
-    private void Send()
+    private void OnEmoji(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        if (_args == null)
+        if (sender is MenuFlyoutItem item)
+        {
+            int cursor = Composer.SelectionStart;
+            Composer.SelectedText = item.Text;
+            Composer.SelectionStart = cursor + item.Text.Length;
+            Composer.SelectionLength = 0;
+            Composer.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
+        }
+    }
+
+    private async void Send()
+    {
+        if (_args == null || _sending)
         {
             return;
         }
@@ -186,8 +199,30 @@ public sealed partial class ChatPage : Page
         {
             return;
         }
-        Composer.Text = "";
-        SetComposing(false);
-        _ = _args.Core.RequestAsync("sendText", new { chat = _args.Chat.Id, text });
+        _sending = true;
+        SendButton.IsEnabled = false;
+        try
+        {
+            await _args.Core.RequestAsync("sendText", new { chat = _args.Chat.Id, text });
+            // Keep edits typed during the request instead of erasing a new draft.
+            if (Composer.Text.Trim() == text) Composer.Text = "";
+            SetComposing(false);
+        }
+        catch (Exception ex)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Message not sent",
+                Content = "Your draft is still here. " + ex.Message,
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot,
+            };
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            _sending = false;
+            SendButton.IsEnabled = !string.IsNullOrWhiteSpace(Composer.Text);
+        }
     }
 }
