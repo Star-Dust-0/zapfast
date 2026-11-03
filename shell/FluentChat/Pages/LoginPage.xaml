@@ -1,0 +1,28 @@
+<Page x:Class="FluentChat.Pages.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="32">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center" Padding="40,32"
+            CornerRadius="8" BorderThickness="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <StackPanel Spacing="16" MaxWidth="420" HorizontalAlignment="Center">
+                <TextBlock Text="Fluent Chat" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" TextAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Connecting to WhatsApp..." />
+                <Border x:Name="QrHost" Width="264" Height="264" CornerRadius="8" Visibility="Collapsed"
+                    Background="White" Padding="12">
+                    <Image x:Name="QrImage" Stretch="Uniform" />
+                </Border>
+                <StackPanel x:Name="QrSteps" Spacing="8" Visibility="Collapsed">
+                    <TextBlock Text="To link this device:" FontWeight="SemiBold" />
+                    <TextBlock Text="1. Open WhatsApp on your phone." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="2. Open Linked devices, then Link a device." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="3. Point the camera at this code." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <ProgressRing x:Name="Working" IsActive="True" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

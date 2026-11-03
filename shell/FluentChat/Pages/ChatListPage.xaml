@@ -1,0 +1,56 @@
+<Page x:Class="FluentChat.Pages.ChatListPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:fc="using:FluentChat">
+    <Page.Resources>
+        <fc:AgoConverter x:Key="ago" />
+        <fc:UnreadVisibilityConverter x:Key="unread" />
+    </Page.Resources>
+    <Grid Padding="12" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock Text="Chats" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button x:Name="NewChatButton" HorizontalAlignment="Right" Width="36" Height="36" Padding="0"
+                CornerRadius="18" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="New chat">
+                <FontIcon Glyph="&#xE710;" FontSize="16" />
+            </Button>
+        </Grid>
+        <TextBox x:Name="SearchBox" PlaceholderText="Search chats" TextChanged="OnSearchChanged" />
+        <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button x:Name="ChipAll" Content="All" Click="OnChip" Tag="all" />
+            <Button x:Name="ChipUnread" Content="Unread" Click="OnChip" Tag="unread" />
+            <Button x:Name="ChipGroups" Content="Groups" Click="OnChip" Tag="groups" />
+            <Button x:Name="ChipFavorites" Content="Favorites" Click="OnChip" Tag="favorites" />
+        </StackPanel>
+        <ListView x:Name="ChatList" Grid.Row="3" SelectionMode="Single"
+            ItemClick="OnChatClick" IsItemClickEnabled="True">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnSpacing="12" Padding="4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <PersonPicture Width="44" Height="44" DisplayName="{Binding Name}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"
+                                TextTrimming="CharacterEllipsis" Text="{Binding Last.Summary, FallbackValue=''}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" Spacing="4">
+                            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="11"
+                                Text="{Binding LastActivity, Converter={StaticResource ago}}" />
+                            <InfoBadge Value="{Binding Unread}" Visibility="{Binding Unread, Converter={StaticResource unread}}" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

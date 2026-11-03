@@ -1,0 +1,16 @@
+<Application xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="FluentChat.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <Color x:Key="SystemAccentColor">#FF00A884</Color>
+            <Color x:Key="SystemAccentColorLight3">#FF8FE8D0</Color>
+            <Color x:Key="SystemAccentColorLight2">#FF4FD9B6</Color>
+            <Color x:Key="SystemAccentColorLight1">#FF1FBE97</Color>
+            <Color x:Key="SystemAccentColorDark3">#FF004A3C</Color>
+            <Color x:Key="SystemAccentColorDark2">#FF006652</Color>
+            <Color x:Key="SystemAccentColorDark1">#FF00876B</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

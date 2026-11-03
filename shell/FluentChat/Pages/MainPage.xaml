@@ -1,0 +1,20 @@
+<Page x:Class="FluentChat.Pages.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="0,0,10,10" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="380" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border CornerRadius="8" BorderThickness="1"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Frame x:Name="ChatsFrame" />
+        </Border>
+        <Border Grid.Column="1" CornerRadius="8" BorderThickness="1"
+            Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Frame x:Name="ConvoFrame" />
+        </Border>
+    </Grid>
+</Page>
