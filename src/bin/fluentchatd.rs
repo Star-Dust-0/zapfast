@@ -14,7 +14,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use zapfast::backend::{Backend, Command, Event, LinkStatus, Waker};
-use zapfast::model::{AccountId, Chat, ChatId, ChatKind, Delivery, Message};
+use zapfast::model::{AccountId, Chat, ChatId, ChatKind, Content, Delivery, LastMessage, Message};
 use zapfast::paths::AppDirs;
 
 const PROTOCOL_VERSION: u32 = 1;
@@ -135,6 +135,8 @@ struct Daemon {
     chats: Vec<Chat>,
     /// `loadChat` requests waiting for their `Event::Messages` answer.
     pending_loads: HashMap<ChatId, Vec<Value>>,
+    /// Offline demo data instead of a live account (FLUENTCHAT_DEMO=1).
+    demo: bool,
 }
 
 impl Daemon {
@@ -216,6 +218,17 @@ impl Daemon {
             )),
             "loadChat" => {
                 let chat = chat_id()?;
+                if self.demo {
+                    let messages = demo_messages(&chat);
+                    self.pending_loads.entry(chat.clone()).or_default().push(id.clone());
+                    self.on_event(Event::Messages {
+                        chat,
+                        messages,
+                        older: false,
+                        complete: true,
+                    });
+                    return Ok(None);
+                }
                 self.backend.send(Command::LoadChat {
                     chat: chat.clone(),
                     before: None,
@@ -250,6 +263,32 @@ impl Daemon {
                         chat: source,
                     })
                 });
+                if self.demo {
+                    let echo = Message {
+                        id: format!("demo-out-{}", text.len()),
+                        chat: chat.clone(),
+                        sender: "demo@s.whatsapp.net".to_string(),
+                        sender_name: None,
+                        from_me: true,
+                        timestamp: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or(0),
+                        history_order: None,
+                        content: Content::Text { text, preview: None },
+                        status: Delivery::Sent,
+                        delivered_at: None,
+                        read_at: None,
+                        quoted: None,
+                        reactions: Vec::new(),
+                        edited: false,
+                        mentions: Vec::new(),
+                        forwarded: false,
+                        thumbnail: None,
+                    };
+                    self.on_event(Event::MessageUpdated(Box::new(echo)));
+                    return Ok(Some(json!({"ok": true})));
+                }
                 self.backend.send(Command::SendText {
                     chat,
                     text,
@@ -443,6 +482,103 @@ impl Daemon {
     }
 }
 
+/// Fictional chats for offline UI testing (no account): the same cast the
+/// approved concept renders use. Never real names or numbers.
+fn demo_chats() -> Vec<Chat> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let chat = |id: &str, name: &str, kind: ChatKind, ago: i64, unread: u32, summary: &str| Chat {
+        id: id.to_string(),
+        name: name.to_string(),
+        group_subject_known: kind == ChatKind::Group,
+        kind,
+        last_activity: now - ago,
+        unread,
+        marked_unread: false,
+        archived: false,
+        pinned: false,
+        pinned_at: 0,
+        muted_until: None,
+        last: Some(LastMessage {
+            from_me: false,
+            sender: "demo".to_string(),
+            sender_name: None,
+            summary: summary.to_string(),
+            full: summary.to_string(),
+            labelled: false,
+            status: Delivery::Read,
+        }),
+        favorite: false,
+        favorite_position: 0,
+        participants: Vec::new(),
+        group_description: None,
+        read_only: false,
+        left: false,
+        info_locked: None,
+        admin: false,
+        group_settings: None,
+        locked: false,
+        ephemeral_expiration: None,
+        labels: Vec::new(),
+        notification_sound: None,
+        unread_mention: None,
+        voice_speed: None,
+    };
+    vec![
+        chat("demo-weekend@g.us", "Weekend Trip", ChatKind::Group, 180, 2, "Khaled: Count me in, guys"),
+        chat("demo-sara@s.whatsapp.net", "Sarah Ahmed", ChatKind::Direct, 2100, 1, "Great, I will send it to you this evening"),
+        chat("demo-omar@s.whatsapp.net", "Omar Farouk", ChatKind::Direct, 5100, 0, "The photos arrived, thank you so much"),
+        chat("demo-mariam@s.whatsapp.net", "Mariam Sami", ChatKind::Direct, 8400, 3, "Is the meeting still on for tomorrow?"),
+        chat("demo-mom@s.whatsapp.net", "Mom", ChatKind::Direct, 15600, 0, "Do not forget the doctor appointment Thursday"),
+        chat("demo-noor@s.whatsapp.net", "Noor Elhoda", ChatKind::Direct, 19800, 0, "Received, everything is fine"),
+        chat("demo-work@g.us", "Work Team", ChatKind::Group, 30000, 0, "Youssef: The report is ready for review"),
+    ]
+}
+
+/// Fictional conversation for the demo group, matching the render script.
+fn demo_messages(chat: &str) -> Vec<Message> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let text = |id: &str, sender: &str, sender_name: Option<&str>, from_me: bool, ago: i64, body: &str| Message {
+        id: format!("demo-{id}"),
+        chat: chat.to_string(),
+        sender: sender.to_string(),
+        sender_name: sender_name.map(str::to_string),
+        from_me,
+        timestamp: now - ago,
+        history_order: None,
+        content: Content::Text {
+            text: body.to_string(),
+            preview: None,
+        },
+        status: Delivery::Read,
+        delivered_at: Some(now - ago),
+        read_at: Some(now - ago + 60),
+        quoted: None,
+        reactions: Vec::new(),
+        edited: false,
+        mentions: Vec::new(),
+        forwarded: false,
+        thumbnail: None,
+    };
+    vec![
+        text("1", "demo-mariam@s.whatsapp.net", Some("Mariam Sami"), false, 1500,
+            "Good evening everyone, is everything ready for tomorrow trip?"),
+        text("2", "demo-khaled@s.whatsapp.net", Some("Khaled"), false, 1320,
+            "Yes, I got the car and the tent ready yesterday."),
+        text("3", "me", None, true, 1200,
+            "Excellent, and I will bring the food and drinks with me."),
+        text("4", "demo-sara@s.whatsapp.net", Some("Sarah Ahmed"), false, 900,
+            "Do not forget the camera this time!"),
+        text("5", "me", None, true, 300,
+            "Beautiful shot, that place is really worth the visit."),
+    ]
+}
+
 fn main() {
     let account = std::env::var("FLUENTCHAT_ACCOUNT").unwrap_or_else(|_| "1".to_string());
     let account_id = AccountId::parse(&account).unwrap_or_else(AccountId::first);
@@ -452,7 +588,13 @@ fn main() {
         std::process::exit(2);
     }
 
-    let mut backend = Backend::spawn(dirs, Waker::default());
+    let demo = std::env::var("FLUENTCHAT_DEMO").is_ok();
+    let mut backend = if demo {
+        let (backend, _events) = Backend::detached();
+        backend
+    } else {
+        Backend::spawn(dirs, Waker::default())
+    };
     if let Some(startup) = backend.take_startup() {
         let _ = startup.send(());
     }
@@ -489,9 +631,21 @@ fn main() {
         me: None,
         chats: Vec::new(),
         pending_loads: HashMap::new(),
+        demo,
     };
 
-    eprintln!("fluentchatd: protocol v{PROTOCOL_VERSION} ready");
+    if demo {
+        daemon.on_event(Event::Link(LinkStatus::Connected));
+        daemon.on_event(Event::Me {
+            id: "demo@s.whatsapp.net".to_string(),
+            lid: None,
+            name: Some("Demo User".to_string()),
+            about: Some("Offline demo".to_string()),
+        });
+        daemon.on_event(Event::Chats(demo_chats()));
+    }
+
+    eprintln!("fluentchatd: protocol v{PROTOCOL_VERSION} ready (demo={demo})");
     loop {
         match frames_rx.recv_timeout(Duration::from_millis(100)) {
             Ok(frame) => daemon.handle_frame(frame),
