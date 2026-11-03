@@ -7,7 +7,6 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
-using Windows.System;
 
 namespace FluentChat.Pages;
 
@@ -164,7 +163,7 @@ public sealed partial class ChatPage : Page
 
     private void OnComposerKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Enter)
+        if (e.Key == Windows.System.VirtualKey.Enter)
         {
             e.Handled = true;
             Send();
