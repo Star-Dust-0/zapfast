@@ -69,7 +69,7 @@ function Test-Launch($tag, $waitSec, $path){
     } catch { "UIA[$tag] error: $_" }
   } else { Start-Sleep 3; Dump-Crash $tag $t0 }
   Shot "app-$tag"
-  if (-not $crashed) { Test-Interactions $tag $proc.MainWindowHandle }
+  if (-not $crashed -and $tag -ne 'core-missing') { Test-Interactions $tag $proc.MainWindowHandle }
 }
 function Get-Element($h,$id){
   $r=[System.Windows.Automation.AutomationElement]::FromHandle($h)
@@ -204,6 +204,20 @@ if ($setup) {
   "installed exists: $(Test-Path $installed)"
   if (Test-Path $installed) {
     Test-Launch 'installed' 25 $installed
+    # Install over a running instance. The installer must signal Quit, finish,
+    # and permit a clean relaunch without requiring a reboot.
+    $upgrade=Start-Process C:\install\setup.exe -ArgumentList '/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES','/LOG=C:\inno-upgrade.log' -PassThru
+    if ($upgrade.WaitForExit(180000)) {
+      "upgrade: exit=$($upgrade.ExitCode) appStillRunning=$([bool](Get-Process FluentChat -ErrorAction SilentlyContinue))"
+    } else { "FAIL[upgrade]: timed out"; $upgrade.Kill() }
+    Test-Launch 'upgraded' 20 $installed
+    KillApp; Start-Sleep 2
+    # Missing-core path uses a reversible rename; never contacts an account.
+    Move-Item C:\app\core\fluentchatd.exe C:\app\core\fluentchatd.test-disabled -Force
+    try { Test-Launch 'core-missing' 15 } finally {
+      KillApp; Move-Item C:\app\core\fluentchatd.test-disabled C:\app\core\fluentchatd.exe -Force
+    }
+    Get-Acl "$env:LOCALAPPDATA\FluentChat" | Format-List Owner,AccessToString
   }
 } else { "ERROR: no installer staged" }
 "run.ps1 done"
