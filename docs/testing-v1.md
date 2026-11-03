@@ -16,7 +16,7 @@ Legend for the proof columns: **CI** = GitHub Actions build job,
 | A2 | WinUI shell compiles and publishes | CI | ✅ |
 | A3 | Bundle: core/fluentchatd.exe + VC CRT next to shell | CI artifact | ✅ |
 | A4 | Portable zip runs from an arbitrary folder | VM | ✅ |
-| A5 | Installer: C:\Program Files\FluentChat, desktop shortcut option, closes running app | VM | 🔲 |
+| A5 | Installer: C:\Program Files\FluentChat, desktop shortcut option, closes running app | VM | ✅ |
 | A6 | In-app update check + install over existing install (same identity) | VM (two fake releases) | 🔲 |
 
 ## B. Core / shell pipe (no account needed)
@@ -28,8 +28,8 @@ Legend for the proof columns: **CI** = GitHub Actions build job,
 | B3 | Bad frames / unknown methods get JSON-RPC errors, core keeps running | CI script | ✅ |
 | B4 | `loadChat` with unknown chat answers cleanly (no hang) | CI script | ✅ |
 | B5 | `shutdown` exits the core within 3 s | CI script | ✅ |
-| B6 | Shell "core missing" page when fluentchatd.exe absent | VM | 🔲 |
-| B7 | Core restart mid-session: shell recovers state | VM | 🔲 |
+| B6 | Shell "core missing" page when fluentchatd.exe absent | VM | ✅ |
+| B7 | Core restart mid-session: shell recovers state | VM | ✅ |
 | B8 | Storage: state/cache dirs created with private permissions, reopen works | CI script | 🔲 |
 
 ## C. UI (offline/mock path, no account)
@@ -41,7 +41,7 @@ Legend for the proof columns: **CI** = GitHub Actions build job,
 | C3 | Arabic RTL mirrors layout (sidebar right, title bar, bubbles) | VM screenshots | 🔲 |
 | C4 | 125% and 100% display scaling, no clipped text or misaligned rows | VM screenshots | 🔲 |
 | C5 | Chat list: search filters, chips filter, unread badges, pinning order | VM with demo data | 🔲 |
-| C6 | Chat page: bubbles L/R, timestamps, composer send enable/disable | VM with demo data | 🔲 |
+| C6 | Chat page: bubbles L/R, timestamps, composer send enable/disable | VM with demo data | ✅ |
 | C7 | Animations: page transitions, list item add, send; 60 fps, no jank | VM recording review | 🔲 |
 | C8 | Login page: QR renders, steps shown, state transitions (unlinked→connecting) | VM (core emits real QR - no scan) | 🔲 |
 | C9 | Crash log written on unhandled exception | VM (forced fault) | ✅ |
@@ -88,13 +88,34 @@ for upgrade remains untested. Rounded two-card layout passed, but actual Mica
 translucency is not established by the VM screenshots. Sidebar and message
 bubbles mirror in RTL; title bar remains LTR and Arabic shaping is untested.
 Conversation load, timestamps, demo send echo and composer clearing passed.
-Empty send remained enabled and unread badge counts appeared as thin bars;
-fixes are in 1bbb282 and await rebuilt-VM verification.
+Empty send and unread badge defects were fixed in 1bbb282 and verified in
+run 41686435185: empty send disabled, nonempty send enabled, badges show 2/1/3.
+The same run verified install-over-running-app (exit 0, app closed), upgraded
+relaunch, missing-core page, and the folder ACL (SYSTEM, Administrators,
+current user only).
 
 A five-second idle sample after sending used 0 additional milliseconds of
 UI CPU, with a 169,279,488-byte working set. This is a single VM sample, not
 proof of 60 fps, animation smoothness, or performance under real-account load.
 
-Still unverified: 125% scaling, core-missing and core-restart behavior, storage
-ACLs/reopen, pinning order, real QR display, updater end-to-end, release assets,
-source backup, and all live-account scenarios. No release has been published.
+Restart recovery was implemented in 81f6896 and verified by forcibly killing
+the daemon: a new PID appeared, the seven-chat list returned, and another
+offline message was sent successfully. Evidence:
+https://github.com/Star-Dust-0/zapfast/actions/runs/41691406863
+
+Still unverified: 125% scaling, storage reopen with real persisted messages,
+pinning order, real QR display, updater end-to-end, release assets, source
+backup, and all live-account scenarios. No release has been published.
+
+## Known implementation gaps (not merely untested)
+
+- New Chat, attachment, emoji, conversation search and More buttons have no
+  action handlers in this shell.
+- Pinning is reflected in sorting but has no user action in the shell.
+- Older-history paging and media display/download are not wired into the shell.
+- The title bar does not mirror with the RTL content.
+- The test runner currently logs FAIL markers but does not fail its workflow
+  on every behavioral failure. Read the markers and inspect screenshots;
+  a green VM workflow alone is not proof that every assertion passed.
+
+This is a verified basic-text-chat demo, not an all-scenarios-verified V1.0.
