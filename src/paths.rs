@@ -49,6 +49,34 @@ impl AppDirs {
         })
     }
 
+    /// Standard platform directories for the Fluent Chat core process, kept
+    /// apart from a ZapFast install on the same computer.
+    pub fn fluent_chat() -> Self {
+        match ProjectDirs::from("com", "FluentChat", "FluentChat") {
+            Some(project) => {
+                let state = project
+                    .state_dir()
+                    .map(|path| path.to_path_buf())
+                    .unwrap_or_else(|| project.data_local_dir().to_path_buf());
+                Self {
+                    config: project.config_dir().to_path_buf(),
+                    runtime: runtime_dir(&project, &state),
+                    state,
+                    cache: project.cache_dir().to_path_buf(),
+                }
+            }
+            None => {
+                let fallback = std::env::current_dir().unwrap_or_default();
+                Self {
+                    config: fallback.join("fluentchat-config"),
+                    state: fallback.join("fluentchat-state"),
+                    cache: fallback.join("fluentchat-cache"),
+                    runtime: fallback.join("fluentchat-run"),
+                }
+            }
+        }
+    }
+
     /// Adopts earlier names, newest first, without replacing existing data.
     /// Call only after acquiring the instance guard, and never for demo runs.
     pub fn adopt_previous_names(&self) -> std::io::Result<()> {
