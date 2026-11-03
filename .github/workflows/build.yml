@@ -40,7 +40,23 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
           $crt = Get-ChildItem "$vs/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT" -Directory | Sort-Object FullName -Descending | Select-Object -First 1
           if ($crt) { Copy-Item "$($crt.FullName)/*.dll" publish -Force }
+      - name: Package portable zip and installer
+        shell: pwsh
+        run: |
+          $xml = [xml](Get-Content shell/FluentChat/FluentChat.csproj)
+          $version = ($xml.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if (-not $version) { throw 'No Version in csproj' }
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          Copy-Item LICENSE publish/LICENSE.txt
+          Compress-Archive publish/* "FluentChat-v$version-portable-win-x64.zip"
+          Copy-Item installer/self-contained.iss self-contained.iss
+          & "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe" /DAppVersion=$version self-contained.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer failed' }
+        id: package
       - uses: actions/upload-artifact@v4
         with:
-          name: fluent-chat-portable
-          path: publish/
+          name: fluent-chat-v${{ steps.package.outputs.version }}-win-x64
+          path: |
+            publish/
+            FluentChat-v*-portable-win-x64.zip
+            out/*.exe
