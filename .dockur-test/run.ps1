@@ -137,12 +137,13 @@ function Test-Interactions($tag,$h){
     $value=$composer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
     if ($tag -eq 'light1') {
       Click-Element (Get-Element $h 'EmojiButton')
-      $ec=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'😀')
+      $face=[char]::ConvertFromUtf32(0x1F600)
+      $ec=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,$face)
       $root=[System.Windows.Automation.AutomationElement]::FromHandle($h)
       $emoji=$root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$ec)
       if (-not $emoji) { $emoji=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$ec) }
       Click-Element $emoji
-      if ($value.Current.Value -eq '😀') { 'PASS[emoji]: inserted into draft' } else { 'FAIL[emoji]: missing in draft' }
+      if ($value.Current.Value -eq $face) { 'PASS[emoji]: inserted into draft' } else { 'FAIL[emoji]: missing in draft' }
       Shot 'emoji-draft'
     }
     $value.SetValue("Offline UI test $tag"); Start-Sleep 1
