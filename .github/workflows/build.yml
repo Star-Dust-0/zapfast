@@ -24,6 +24,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'core check failed' }
           cargo build --release --bin fluentchatd
           if ($LASTEXITCODE -ne 0) { throw 'core build failed' }
+      - name: Core pipe verification (B1-B5)
+        shell: pwsh
+        run: ./verification/core-pipe.ps1
       - name: Build WinUI shell
         shell: pwsh
         run: |
