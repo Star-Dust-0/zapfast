@@ -27,4 +27,9 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
+  <Target Name="PublishAppResources" AfterTargets="Publish">
+    <Error Condition="!Exists('$(TargetDir)$(AssemblyName).pri')" Text="App PRI ($(TargetDir)$(AssemblyName).pri) was not generated; without it the published app cannot load its XAML and dies at launch with XamlParseException." />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)resources.pri" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)$(AssemblyName).pri" />
+  </Target>
 </Project>
