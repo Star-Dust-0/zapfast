@@ -10,6 +10,7 @@ if (-not (Test-Path $core)) { $core = Join-Path $PSScriptRoot '..' 'publish' 'co
 if (-not (Test-Path $core)) { throw "fluentchatd.exe not found" }
 
 $env:FLUENTCHAT_ACCOUNT = '1'
+$env:FLUENTCHAT_TRACE = '1'
 if ($Demo) { $env:FLUENTCHAT_DEMO = '1' }
 $p = New-Object System.Diagnostics.Process
 $p.StartInfo.FileName = $core

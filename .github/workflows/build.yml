@@ -39,6 +39,10 @@ jobs:
           Get-Content probe-real-err.txt
           if ((Get-Content probe-real-out.jsonl -Raw) -notmatch '"pong":true') { throw 'raw real probe: no pong' }
           Write-Output 'raw real probe: pong OK'
+          cmd /c "set FLUENTCHAT_TRACE=1&& set FLUENTCHAT_DEMO=1&& type frames.jsonl | target\release\fluentchatd.exe > probe-pipe-out.jsonl 2> probe-pipe-err.txt"
+          Get-Content probe-pipe-err.txt
+          if ((Get-Content probe-pipe-out.jsonl -Raw) -notmatch '"pong":true') { throw 'cmd pipe probe: no pong' }
+          Write-Output 'cmd pipe probe: pong OK'
       - name: Core pipe verification (demo, B1-B5)
         shell: pwsh
         run: ./verification/core-pipe.ps1 -Demo

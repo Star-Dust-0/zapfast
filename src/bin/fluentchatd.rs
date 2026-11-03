@@ -137,12 +137,17 @@ struct Daemon {
     pending_loads: HashMap<ChatId, Vec<Value>>,
     /// Offline demo data instead of a live account (FLUENTCHAT_DEMO=1).
     demo: bool,
+    /// Log every frame crossing the pipe to stderr (FLUENTCHAT_TRACE=1).
+    trace: bool,
 }
 
 impl Daemon {
     fn write(&mut self, frame: Value) {
         let mut line = frame.to_string();
         line.push('\n');
+        if self.trace {
+            eprintln!("fluentchatd: -> {}", line.trim_end());
+        }
         let mut out = self.out.lock();
         if out.write_all(line.as_bytes()).is_err() {
             // The shell closed the pipe: nothing left to serve.
@@ -580,6 +585,10 @@ fn demo_messages(chat: &str) -> Vec<Message> {
 }
 
 fn main() {
+    let trace = std::env::var("FLUENTCHAT_TRACE").is_ok();
+    if trace {
+        eprintln!("fluentchatd: trace on");
+    }
     let account = std::env::var("FLUENTCHAT_ACCOUNT").unwrap_or_else(|_| "1".to_string());
     let account_id = AccountId::parse(&account).unwrap_or_else(AccountId::first);
     let dirs = AppDirs::fluent_chat().account(&account_id);
@@ -607,6 +616,9 @@ fn main() {
             for line in stdin.lock().lines() {
                 match line {
                     Ok(text) if !text.trim().is_empty() => {
+                        if trace {
+                            eprintln!("fluentchatd: <- {text}");
+                        }
                         match serde_json::from_str::<Value>(&text) {
                             Ok(frame) => {
                                 if frames_tx.send(frame).is_err() {
@@ -632,6 +644,7 @@ fn main() {
         chats: Vec::new(),
         pending_loads: HashMap::new(),
         demo,
+        trace,
     };
 
     if demo {
