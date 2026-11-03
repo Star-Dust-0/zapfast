@@ -17,15 +17,7 @@ $null = $p.Start()
 
 $responses = @{}
 $events = New-Object System.Collections.ArrayList
-$done = $false
-$reader = Start-Job -ScriptBlock {
-    param($proc)
-    while (-not $proc.HasExited) {
-        $line = $proc.StandardOutput.ReadLine()
-        if ($null -eq $line) { break }
-        if ($line.Length -gt 0) { $line }
-    }
-} -ArgumentList $p
+$readTask = $p.StandardOutput.ReadLineAsync()
 
 function Send-Frame($obj) {
     $p.StandardInput.WriteLine(($obj | ConvertTo-Json -Compress -Depth 8))
@@ -34,13 +26,17 @@ function Send-Frame($obj) {
 function Wait-Reply($id, $timeoutSec = 15) {
     $limit = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $limit) {
-        foreach ($line in (Receive-Job $reader -Keep)) {
-            $frame = $line | ConvertFrom-Json
-            if ($null -ne $frame.id) { $script:responses[$frame.id] = $frame }
-            elseif ($frame.method -eq 'event') { $null = $events.Add($frame.params.name) }
+        if ($readTask.Wait(200)) {
+            $line = $readTask.Result
+            if ($null -eq $line) { break }
+            $readTask = $p.StandardOutput.ReadLineAsync()
+            if ($line.Length -gt 0) {
+                $frame = $line | ConvertFrom-Json
+                if ($null -ne $frame.id) { $responses[$frame.id] = $frame }
+                elseif ($frame.method -eq 'event') { $null = $events.Add($frame.params.name) }
+            }
         }
         if ($responses.ContainsKey($id)) { return $responses[$id] }
-        Start-Sleep -Milliseconds 200
     }
     throw "timeout waiting for reply id=$id"
 }
@@ -80,6 +76,5 @@ $exited = $p.WaitForExit(3000)
 Check 'B5 shutdown exits within 3s' ($exited -eq $true)
 
 if (-not $exited) { $p.Kill() }
-Remove-Job $reader -Force -ErrorAction SilentlyContinue
 if ($fails -gt 0) { throw "$fails core-pipe check(s) failed" }
 Write-Output 'core-pipe: all checks passed'
