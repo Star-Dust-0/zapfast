@@ -32,10 +32,14 @@ jobs:
           echo "build run: $run_id"
           version=$(grep -oPm1 '(?<=<Version>)[^<]+' shell/FluentChat/FluentChat.csproj)
           echo "version: $version"
-          mkdir -p shared
-          gh run download "$run_id" -n "fluent-chat-v$version-win-x64" -p stage
+          mkdir -p shared stage
+          url=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts" | jq -r '.artifacts[0].archive_download_url')
+          curl -sL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$url" -o stage/artifact.zip
+          unzip -q stage/artifact.zip -d stage
+          ls -la stage
           cp stage/*portable*.zip shared/
-          cp stage/out/*.exe shared/ || cp stage/*.exe shared/
+          cp stage/out/*.exe shared/
           cp .dockur-test/run.ps1 shared/run.ps1
           ls -la shared
       - name: KVM check
