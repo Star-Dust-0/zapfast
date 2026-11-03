@@ -18,6 +18,8 @@ public partial class App : Application
 
     public App()
     {
+        // V1.0 is an offline demo release. No real account is contacted.
+        Environment.SetEnvironmentVariable("FLUENTCHAT_DEMO", "1");
         InitializeComponent();
         UnhandledException += delegate (object s, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
