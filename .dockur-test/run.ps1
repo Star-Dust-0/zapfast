@@ -69,6 +69,71 @@ function Test-Launch($tag, $waitSec, $path){
     } catch { "UIA[$tag] error: $_" }
   } else { Start-Sleep 3; Dump-Crash $tag $t0 }
   Shot "app-$tag"
+  if (-not $crashed) { Test-Interactions $tag $proc.MainWindowHandle }
+}
+function Get-Element($h,$id){
+  $r=[System.Windows.Automation.AutomationElement]::FromHandle($h)
+  $c=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$id)
+  return $r.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$c)
+}
+function Click-Element($e){
+  if (-not $e) { throw 'Missing UI element' }
+  $r=$e.Current.BoundingRectangle
+  [WindowTest]::SetCursorPos([int]($r.X+$r.Width/2),[int]($r.Y+$r.Height/2)) | Out-Null
+  [WindowTest]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+  [WindowTest]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+  Start-Sleep 1
+}
+function Chat-Count($h){
+  $list=Get-Element $h 'ChatList'
+  $c=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)
+  return $list.FindAll([System.Windows.Automation.TreeScope]::Children,$c).Count
+}
+function Assert-Count($tag,$h,$expected){
+  $actual=Chat-Count $h
+  if ($actual -eq $expected) { "PASS[$tag]: chat count $actual" } else { "FAIL[$tag]: expected $expected chats, got $actual" }
+}
+function Test-Interactions($tag,$h){
+  try {
+    if ($tag -eq 'light1') {
+      Assert-Count 'all' $h 7
+      $search=Get-Element $h 'SearchBox'
+      $value=$search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+      $value.SetValue('Sarah'); Start-Sleep 2
+      Assert-Count 'search-Sarah' $h 1
+      Shot 'search-Sarah'
+      $value.SetValue(''); Start-Sleep 1
+      Click-Element (Get-Element $h 'ChipUnread'); Assert-Count 'unread' $h 3
+      Click-Element (Get-Element $h 'ChipGroups'); Assert-Count 'groups' $h 2
+      Click-Element (Get-Element $h 'ChipFavorites'); Assert-Count 'favorites' $h 0
+      Click-Element (Get-Element $h 'ChipAll'); Assert-Count 'all-reset' $h 7
+    }
+    $list=Get-Element $h 'ChatList'
+    $c=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)
+    $first=$list.FindFirst([System.Windows.Automation.TreeScope]::Children,$c)
+    Click-Element $first; Start-Sleep 3
+    $composer=Get-Element $h 'Composer'
+    if (-not $composer) { throw 'Conversation did not open' }
+    Shot "chat-$tag"
+    $send=Get-Element $h 'SendButton'
+    "send-empty[$tag]: enabled=$($send.Current.IsEnabled)"
+    $value=$composer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    $value.SetValue("Offline UI test $tag"); Start-Sleep 1
+    "send-filled[$tag]: enabled=$($send.Current.IsEnabled)"
+    Click-Element $send; Start-Sleep 3
+    "composer-after-send[$tag]: '$($value.Current.Value)'"
+    $root=[System.Windows.Automation.AutomationElement]::FromHandle($h)
+    $tc=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,"Offline UI test $tag")
+    $echo=$root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$tc)
+    if ($echo) { "PASS[$tag]: demo message echo rendered" } else { "FAIL[$tag]: demo echo missing" }
+    Shot "sent-$tag"
+    if ($tag -eq 'light1') {
+      $p=Get-Process FluentChat | select -First 1
+      $before=$p.TotalProcessorTime.TotalMilliseconds
+      Start-Sleep 5; $p.Refresh()
+      "idle-sample: CPU ms over 5sec=$($p.TotalProcessorTime.TotalMilliseconds-$before) workingSet=$($p.WorkingSet64)"
+    }
+  } catch { "FAIL[interactions-$tag]: $_" }
 }
 
 Shot 'desktop'
