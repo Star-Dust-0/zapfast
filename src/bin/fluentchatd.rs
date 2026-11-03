@@ -307,6 +307,34 @@ impl Daemon {
                 });
                 Ok(Some(json!({"ok": true})))
             }
+            "setPinned" => {
+                let chat = chat_id()?;
+                let pinned = params
+                    .get("pinned")
+                    .and_then(Value::as_bool)
+                    .ok_or_else(|| (-32602, "missing boolean param `pinned`".to_string()))?;
+                if self.demo {
+                    let known = self
+                        .chats
+                        .iter_mut()
+                        .find(|known| known.id == chat)
+                        .ok_or_else(|| (-32602, "unknown chat".to_string()))?;
+                    known.pinned = pinned;
+                    known.pinned_at = if pinned {
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+                    let dto = chat_dto(known);
+                    self.notify("chatUpdated", json!({"chat": dto}));
+                } else {
+                    self.backend.send(Command::SetPinned(chat, pinned));
+                }
+                Ok(Some(json!({"ok": true})))
+            }
             "markRead" => {
                 let chat = chat_id()?;
                 let receipts = params

@@ -40,6 +40,11 @@
             <ListView.ItemTemplate>
                 <DataTemplate>
                     <Grid ColumnSpacing="12" Padding="4,6">
+                        <Grid.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Pin / unpin chat" Click="OnTogglePinned" Tag="{Binding}" />
+                            </MenuFlyout>
+                        </Grid.ContextFlyout>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />

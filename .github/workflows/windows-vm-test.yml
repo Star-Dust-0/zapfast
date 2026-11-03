@@ -67,6 +67,17 @@ jobs:
             sleep 20
           done
           echo "total $(( $(date +%s)-start ))s"; cat shared/result.txt shared/ps-log.txt || echo NO_RESULT; ls -la shared
+      - name: Assert guest results
+        if: always()
+        run: |
+          test -f shared/result.txt && grep -q DONE shared/result.txt
+          test -f shared/ps-log.txt
+          if grep -E 'FAIL\[|never appeared|died after|TIMED OUT|standalone-core: EXIT' shared/ps-log.txt; then
+            echo 'Guest verification failed'; exit 1
+          fi
+          for evidence in 'PASS\[restart\]' 'PASS\[upgraded\]: demo message echo rendered' 'PASS\[light1\]: empty send disabled'; do
+            grep -q "$evidence" shared/ps-log.txt || exit 1
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

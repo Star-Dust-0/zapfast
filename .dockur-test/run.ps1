@@ -107,6 +107,23 @@ function Test-Interactions($tag,$h){
       Click-Element (Get-Element $h 'ChipGroups'); Assert-Count 'groups' $h 2
       Click-Element (Get-Element $h 'ChipFavorites'); Assert-Count 'favorites' $h 0
       Click-Element (Get-Element $h 'ChipAll'); Assert-Count 'all-reset' $h 7
+      $root=[System.Windows.Automation.AutomationElement]::FromHandle($h)
+      $nc=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Sarah Ahmed')
+      $sarah=$root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$nc)
+      $r=$sarah.Current.BoundingRectangle
+      [WindowTest]::SetCursorPos([int]($r.X+20),[int]($r.Y+5)) | Out-Null
+      [WindowTest]::mouse_event(8,0,0,0,[UIntPtr]::Zero)
+      [WindowTest]::mouse_event(16,0,0,0,[UIntPtr]::Zero)
+      Start-Sleep 2
+      $mc=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Pin / unpin chat')
+      $menu=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$mc)
+      Click-Element $menu; Start-Sleep 2
+      $list=Get-Element $h 'ChatList'
+      $ic=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)
+      $first=$list.FindFirst([System.Windows.Automation.TreeScope]::Children,$ic)
+      if ($first.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$nc)) { 'PASS[pin]: Sarah moved to top' } else { 'FAIL[pin]: Sarah not first' }
+      Shot 'pinned-Sarah'
+
     }
     $list=Get-Element $h 'ChatList'
     $c=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)

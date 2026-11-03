@@ -197,6 +197,22 @@ public sealed partial class ChatListPage : Page
         }
     }
 
+    private async void OnTogglePinned(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_host == null || sender is not MenuFlyoutItem item || item.Tag is not Chat chat) return;
+        try
+        {
+            await _host.Core.RequestAsync("setPinned", new { chat = chat.Id, pinned = !chat.Pinned });
+        }
+        catch (Exception ex)
+        {
+            UpdateBar.Severity = InfoBarSeverity.Error;
+            UpdateBar.Title = "Could not change pin";
+            UpdateBar.Message = ex.Message;
+            UpdateBar.IsOpen = true;
+        }
+    }
+
     private void OnChatClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is Chat chat)
