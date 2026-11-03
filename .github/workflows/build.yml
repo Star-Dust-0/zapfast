@@ -26,9 +26,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'core check failed' }
           cargo build --release --bin fluentchatd
           if ($LASTEXITCODE -ne 0) { throw 'core build failed' }
-      - name: Core pipe verification (B1-B5)
+      - name: Core raw pipe probe (cmd redirect, demo + real)
         shell: pwsh
-        run: ./verification/core-pipe.ps1
+        run: |
+          $frames = @('{"jsonrpc":"2.0","id":1,"method":"ping"}', '{"jsonrpc":"2.0","id":2,"method":"shutdown"}')
+          [System.IO.File]::WriteAllLines("$PWD/frames.jsonl", $frames)
+          cmd /c "set FLUENTCHAT_DEMO=1&& target\release\fluentchatd.exe < frames.jsonl > probe-demo-out.jsonl 2> probe-demo-err.txt"
+          Get-Content probe-demo-err.txt
+          if ((Get-Content probe-demo-out.jsonl -Raw) -notmatch '"pong":true') { throw 'raw demo probe: no pong' }
+          Write-Output 'raw demo probe: pong OK'
+          cmd /c "target\release\fluentchatd.exe < frames.jsonl > probe-real-out.jsonl 2> probe-real-err.txt"
+          Get-Content probe-real-err.txt
+          if ((Get-Content probe-real-out.jsonl -Raw) -notmatch '"pong":true') { throw 'raw real probe: no pong' }
+          Write-Output 'raw real probe: pong OK'
+      - name: Core pipe verification (demo, B1-B5)
+        shell: pwsh
+        run: ./verification/core-pipe.ps1 -Demo
+      - name: Core pipe verification (real backend smoke, B1+B5)
+        shell: pwsh
+        run: ./verification/core-pipe.ps1 -Smoke
       - name: Build WinUI shell
         shell: pwsh
         run: |
