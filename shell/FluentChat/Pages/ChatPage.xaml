@@ -71,7 +71,7 @@
             <Button Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Emoji">
                 <FontIcon Glyph="&#xE76E;" FontSize="16" />
             </Button>
-            <Button x:Name="SendButton" Grid.Column="3" Width="36" Height="36" Padding="0" CornerRadius="18" Background="{ThemeResource AccentFillColorDefaultBrush}"
+            <Button x:Name="SendButton" IsEnabled="False" Grid.Column="3" Width="36" Height="36" Padding="0" CornerRadius="18" Background="{ThemeResource AccentFillColorDefaultBrush}"
                 Click="OnSend" ToolTipService.ToolTip="Send">
                 <FontIcon Glyph="&#xE724;" FontSize="16" Foreground="White" />
             </Button>

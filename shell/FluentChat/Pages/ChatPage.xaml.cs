@@ -158,8 +158,11 @@ public sealed partial class ChatPage : Page
         }
     }
 
-    private void OnComposerChanged(object sender, TextChangedEventArgs e) =>
+    private void OnComposerChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SendButton != null) SendButton.IsEnabled = !string.IsNullOrWhiteSpace(Composer.Text);
         SetComposing(Composer.Text.Length > 0);
+    }
 
     private void OnComposerKeyDown(object sender, KeyRoutedEventArgs e)
     {

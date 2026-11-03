@@ -29,6 +29,15 @@ public sealed class AgoConverter : IValueConverter
         throw new NotSupportedException();
 }
 
+public sealed class UnreadCountConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language) =>
+        value is uint count ? (int)Math.Min(count, (uint)int.MaxValue) : 0;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
+        throw new NotSupportedException();
+}
+
 public sealed class UnreadVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language) =>

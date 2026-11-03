@@ -116,7 +116,7 @@ function Test-Interactions($tag,$h){
     if (-not $composer) { throw 'Conversation did not open' }
     Shot "chat-$tag"
     $send=Get-Element $h 'SendButton'
-    "send-empty[$tag]: enabled=$($send.Current.IsEnabled)"
+    if ($send.Current.IsEnabled) { "FAIL[$tag]: empty send enabled" } else { "PASS[$tag]: empty send disabled" }
     $value=$composer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
     $value.SetValue("Offline UI test $tag"); Start-Sleep 1
     "send-filled[$tag]: enabled=$($send.Current.IsEnabled)"

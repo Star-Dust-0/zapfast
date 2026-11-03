@@ -5,6 +5,7 @@
     <Page.Resources>
         <fc:AgoConverter x:Key="ago" />
         <fc:UnreadVisibilityConverter x:Key="unread" />
+        <fc:UnreadCountConverter x:Key="unreadCount" />
     </Page.Resources>
     <Grid Padding="12" RowSpacing="10">
         <Grid.RowDefinitions>
@@ -53,7 +54,7 @@
                         <StackPanel Grid.Column="2" HorizontalAlignment="Right" Spacing="4">
                             <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="11"
                                 Text="{Binding LastActivity, Converter={StaticResource ago}}" />
-                            <InfoBadge Value="{Binding Unread}" Visibility="{Binding Unread, Converter={StaticResource unread}}" />
+                            <InfoBadge MinWidth="18" MinHeight="18" Value="{Binding Unread, Converter={StaticResource unreadCount}}" Visibility="{Binding Unread, Converter={StaticResource unread}}" />
                         </StackPanel>
                     </Grid>
                 </DataTemplate>
